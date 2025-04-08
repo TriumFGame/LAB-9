@@ -1,217 +1,178 @@
-import pygame as pg
 import random
-import time
-from collections import namedtuple
-
-pg.init()
-# Fonts 
-font = pg.font.SysFont("Roboto-Bold .ttf", 30, True)
-bigfont = pg.font.SysFont("Roboto-Bold .ttf", 50, True)
-
-# Music
-pg.mixer.music.load("racer_sound_background.wav")
-pg.mixer.music.play(-1)
-# Directions 
-class Direction():
-    RIGHT = 'RIGHT'
-    LEFT = 'LEFT'
-    UP = 'UP'
-    DOWN = 'DOWN'
-
-# Getting Positions 
-Point = namedtuple('Point', 'x y')
-
+import pygame 
+# Initializing 
+pygame.init()
+# Screen 
+WIDTH = 400
+HEIGHT = 600
+SURF = pygame.display.set_mode((WIDTH, HEIGHT))
+pygame.display.set_caption("Street Racer")
 # Colors 
 WHITE = (255, 255, 255)
-GOLD = (255, 223, 0)
-RED = (200, 0, 0)
-GREEN1 = (255, 255, 255)
-GREEN2 = (0, 255, 0)
-GREEN3 = (0, 40, 0)
 BLACK = (0, 0, 0)
-GRASS = (204, 153, 255)
+RED = (255, 255, 0)
+GREEN = (0, 255, 0)
+BLUE = (0, 0, 255)
+
+clock = pygame.time.Clock()
+# Background 
+bg = pygame.image.load("AnimatedStreet.png")
+# Font 
+score_font = pygame.font.SysFont("Roboto-Bold .ttf", 50, True, True)
+big_font = pygame.font.SysFont("Roboto-Bold .ttf", 70, True, False)
+rest_font = pygame.font.SysFont("Roboto-Bold .ttf", 50, False, False)
+restart = rest_font.render("Press R to restart", True, BLACK)
+game_over = big_font.render("GAME OVER", True, BLACK)
 # Variables 
-BLOCK_SIZE = 20
-SPEED = 7
-running = True
-game_over = False
+paused = False
+STEP = 5
+# Classes 
 
-
-# Main Class 
-class Game:
-    def __init__(self, WIDTH=800, HEIGHT=600):
-        # Initializing 
-        self.WIDTH = WIDTH
-        self.HEIGHT = HEIGHT
-        self.clock = pg.time.Clock()
-        self.display = pg.display.set_mode((self.WIDTH, self.HEIGHT))
-        pg.display.set_caption('Snake')
-
-        # Starting positions, directions 
-        self.direction = Direction.RIGHT
-        self.head = Point(self.WIDTH // 2, self.HEIGHT // 2)
-        # The initial snake with a length of 3 with its body coordinates 
-        self.snake = [self.head,
-                      Point(self.head.x - BLOCK_SIZE, self.head.y),
-                      Point(self.head.x - (2 * BLOCK_SIZE), self.head.y)]
-        self.megafood_exists = False # Appearance of Megafood
-        self.level = 0 # Level
-        self.score = 0
-        self.food = None
-        self.megafood = None
-        self.current = 0 # Current time
-        self.start = 0 # Start time
-        self.difference = 0 # difference between times
-        self.counter = 10 # Time
-        self.food_move()
-    # Moving Food to random positions 
-    def food_move(self):
-        x = random.randint(0, (self.WIDTH - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
-        y = random.randint(0, (self.HEIGHT - BLOCK_SIZE) // BLOCK_SIZE) * BLOCK_SIZE
-        self.food = Point(x, y)
-        if self.food in self.snake:
-            self.food_move()
-
-    # Moving Megafood to random positions 
-    def megafood_move(self):
-        x = random.randint(0, (self.WIDTH - BLOCK_SIZE*2) // BLOCK_SIZE) * BLOCK_SIZE
-        y = random.randint(0, (self.HEIGHT - BLOCK_SIZE*2) // BLOCK_SIZE) * BLOCK_SIZE
-        self.start = time.time()
-        self.megafood = Point(x, y)
-        if self.food in self.snake:
-            self.megafood_move()
-
-    # Snake Turns and the Exit Condition 
-    def play_step(self):
-        # User Inputs From Keyboard 
-        for event in pg.event.get():
-            if event.type == pg.QUIT:
-                pg.quit()
-                quit()
-            if event.type == pg.KEYDOWN:
-                if event.key == pg.K_LEFT and self.direction != Direction.RIGHT:
-                    self.direction = Direction.LEFT
-                elif event.key == pg.K_RIGHT and self.direction != Direction.LEFT:
-                    self.direction = Direction.RIGHT
-                elif event.key == pg.K_UP and self.direction != Direction.DOWN:
-                    self.direction = Direction.UP
-                elif event.key == pg.K_DOWN and self.direction != Direction.UP:
-                    self.direction = Direction.DOWN
-
-        # Move 
-        self.move(self.direction)  # Update The Head
-        self.snake.insert(0, self.head)
-
-        # Check If Game Over 
-        if self.collision():
-            global game_over
-            game_over = True
-
-        # Place New Food 
-        if self.head == self.food:
-            self.score += 1
-            self.food_move()
-            if self.score // 5 > self.level:
-                global SPEED
-                if random.randint(1, 2) == 1 and not self.megafood:
-                    self.megafood_exists = True
-                    self.megafood_move()
-                SPEED += 3
-                self.level = (SPEED-7)//3
-        else:
-            self.snake.pop()
-
-        if self.head == self.megafood:
-            self.score += 5
-            self.megafood_exists = False
-
-        # Update Interface 
-
-        self.update()
-        self.clock.tick(SPEED)
-
-    def collision(self):
-        # Hits Boundary 
-        if self.head.x > self.WIDTH - BLOCK_SIZE or self.head.x < 0 or self.head.y > self.HEIGHT - BLOCK_SIZE or self.head.y < 0:
-            pg.display.flip()
-            return True
-        # Hits Itself 
-        if self.head in self.snake[1:]:
-            return True
-        return False
+class Player(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()#sprite main player inher
+        self.image = pygame.image.load("Player.png")
+        self.rect = self.image.get_rect()
+        self.rect.center = (160, 520)
 
     def update(self):
-        self.display.fill(GRASS)
-        # Drawing Skin of Snake as two different rectangles 
-        for skin in self.snake:
-            pg.draw.rect(self.display, GREEN1, pg.Rect(skin.x, skin.y, BLOCK_SIZE, BLOCK_SIZE))
-            pg.draw.rect(self.display, GREEN2, pg.Rect(skin.x + 4, skin.y + 4, 12, 12))
-        # Drawing food 
-        pg.draw.rect(self.display, RED, pg.Rect(self.food.x, self.food.y, BLOCK_SIZE, BLOCK_SIZE))
-        # Drawing Megafood in case of it exists
-        if self.megafood_exists:
-            pg.draw.rect(self.display, BLACK,
-                         pg.Rect(self.megafood.x, self.megafood.y, BLOCK_SIZE, BLOCK_SIZE))
-            pg.draw.rect(self.display, (random.randint(0, 255), random.randint(0, 255), random.randint(0, 255)),
-                         pg.Rect(self.megafood.x + 4, self.megafood.y + 4, 12, 12))
-        # Updating Score and Level Text 
-        text1 = font.render(f"Score: {self.score}", True, WHITE)
-        text2 = font.render(f"Level: {self.level}", True, WHITE)
+        pressed_keys = pygame.key.get_pressed()
+        if self.rect.left > 0:
+            if pressed_keys[pygame.K_LEFT]:
+                self.rect.move_ip(-STEP, 0)
 
-        # Updating Timer 
-        self.current = time.time()
-        self.difference = abs(int(self.current - self.start - self.counter))
-        if self.start + self.counter - self.current >= 0:
-            text4 = font.render(str(self.difference), True, WHITE)
+        if self.rect.right < WIDTH:
+            if pressed_keys[pygame.K_RIGHT]:
+                self.rect.move_ip(STEP, 0)
 
-        # Blit Score and Level 
-        self.display.blit(text1, (10, 10))
-        self.display.blit(text2, (10, 30))
-        # Blit Timer if Megafood exists and Time is greater than 0 
-        if self.megafood_exists and self.start + self.counter - self.current >= 0:
-            self.display.blit(text4, (10, 50))
-        else:
-            self.megafood_exists = False
-        # Blit Restart Text in case of loss 
-        if self.collision():
-            pg.mixer.music.stop()
-            text3 = bigfont.render(f"Press R to Restart", True, WHITE)
-            self.display.blit(text3, (self.HEIGHT // 2 - 50, self.WIDTH // 2 - 140))
-        pg.display.flip()
-
-    # Snake Movement 
-    def move(self, direction):
-        x = self.head.x
-        y = self.head.y
-        if direction == Direction.RIGHT:
-            x += BLOCK_SIZE
-        elif direction == Direction.LEFT:
-            x -= BLOCK_SIZE
-        elif direction == Direction.DOWN:
-            y += BLOCK_SIZE
-        elif direction == Direction.UP:
-            y -= BLOCK_SIZE
-        self.head = Point(x, y)
+    def draw(self, surface):
+        surface.blit(self.image, self.rect)
 
 
-# Game Loop 
-game = Game()
-while running:
-    # game_over
-    score = game.play_step()
-    if game_over == True:
-        while game_over:
-            for event in pg.event.get():
-                if event.type == pg.QUIT:
-                    pg.quit()
+class Enemy(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.image.load("Enemy.png")
+        self.rect = self.image.get_rect()
+        self.rect.center = (random.randint(40, WIDTH - 40), 0)
+
+    def update(self):
+        self.rect.move_ip(0, STEP)
+        if self.rect.top > HEIGHT:
+            self.top = 0
+            self.rect.center = (random.randint(30, 350), 0)
+
+    def draw(self, surface):
+        surface.blit(self.image, self.rect)
+
+
+class Coin(pygame.sprite.Sprite):
+    def __init__(self):
+        super().__init__()
+        self.image = pygame.transform.scale(pygame.image.load("coin.png"), (40, 40))
+        self.rect = self.image.get_rect()
+        self.rect.center = (random.randint(40, WIDTH - 40), -200)
+
+    def update(self):
+        self.rect.move_ip(0, STEP)
+        if self.rect.top > HEIGHT:
+            self.bottom = -200
+            self.rect.center = (random.randint(40, WIDTH - 40), -200)
+
+    def draw(self, surface):
+        surface.blit(self.image, self.rect)
+
+
+def fgame_over():
+    global paused
+    while paused:
+        clock.tick(5)
+        SURF.fill(RED)
+        SURF.blit(game_over, (30, 250))
+        SURF.blit(restart, (55, 300))
+        pygame.display.update()
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                pygame.quit()
+                quit()
+            if event.type == pygame.KEYDOWN:
+                if event.key == pygame.K_r:
+                    global STEP
+                    global SCORE
+                    STEP = 5
+                    SCORE = 0
+                    paused = False
+                    main()
+                elif event.key == pygame.K_q:
+                    pygame.quit()
                     quit()
-                # Restart Conditions 
-                elif event.type == pg.KEYDOWN:
-                    if event.key == pg.K_r:
-                        SPEED = 8
-                        game = Game()
-                        game_over = False
 
 
-pg.quit()
-exit()
+def main():
+    # # Variables 
+    global STEP
+    STEP = 5
+    SCORE = 0
+    # Sprites 
+    P1 = Player()
+    E1 = Enemy()
+    C1 = Coin()
+    # Groups 
+    enemies = pygame.sprite.Group()
+    coins = pygame.sprite.Group()
+    enemies.add(E1)
+    coins.add(C1)
+
+    # Music 
+    pygame.mixer.music.load("racer_sound_background.wav")
+    pygame.mixer.music.play(-1)
+    running = True
+    # Adding a new User event 
+    INC_SPEED = pygame.USEREVENT + 1
+    pygame.time.set_timer(INC_SPEED, 1000)
+    # Game Loop
+    while running:
+        clock.tick(60)
+        # Quit and increasing speed
+        for event in pygame.event.get():
+            if event.type == pygame.QUIT:
+                running = False
+            if event.type == INC_SPEED:
+                STEP += 0.3
+        # Updating 
+        P1.update()
+        for enemy in enemies:
+            enemy.update()
+        C1.update()
+        # Collision 
+        if pygame.sprite.spritecollideany(P1, enemies):
+            pygame.mixer.music.pause()
+            pygame.mixer.Sound("racer_sound_crash.wav").play()
+            global paused
+            paused = True
+            fgame_over()
+            for enemy in enemies:
+                enemy.kill()
+        if pygame.sprite.spritecollideany(P1, coins):
+            SCORE += 1
+            pygame.mixer.Sound("racer_sound_coin.wav").play()
+            # Deleting and adding New Coin 
+            for c in coins:
+                c.kill()
+            C1 = Coin()
+            coins.add(C1)
+        SURF.blit(bg, (0, 0))
+        # Drawing 
+        for enemy in enemies:
+            enemy.draw(SURF)
+        P1.draw(SURF)
+        C1.draw(SURF)
+        score_img = score_font.render(str(SCORE), True, BLACK)
+        SURF.blit(score_img, (10, 10))
+
+        pygame.display.update()
+    pygame.quit()
+    exit()
+
+
+main()
